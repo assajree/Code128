@@ -14,7 +14,7 @@ namespace CSI.Code128
     {
         #region common
 
-        public enum CodeSet
+        public enum eCodeSet
         {
             CodeA,
             CodeB
@@ -158,6 +158,11 @@ namespace CSI.Code128
             {105,"Í"},      // Start Code C	
             {106,"Î"},      // Stop
         };
+        private eCodeSet _currentCodeSet;
+        public eCodeSet CodeSet
+        {
+            get { return _currentCodeSet; }
+        }
         #endregion
 
         public string StartChar { get; private set; }
@@ -180,12 +185,12 @@ namespace CSI.Code128
             var csa2 = asciiBytes.Length > 1
                            ? CodesetAllowedForChar(asciiBytes[1])
                            : CodeSetAllowed.CodeAorB;
-            var currentCodeSet = GetBestStartSet(csa1, csa2);
+            _currentCodeSet = GetBestStartSet(csa1, csa2);
 
             // set up the beginning of the barcode
             // assume no codeset changes, account for start, checksum, and stop
             var codes = new ArrayList(asciiBytes.Length + 3);
-            var startCode = StartCodeForCodeSet(currentCodeSet);
+            var startCode = StartCodeForCodeSet(_currentCodeSet);
             codes.Add(startCode);
             this.StartChar = GetCode(startCode);
 
@@ -195,7 +200,7 @@ namespace CSI.Code128
                 int thischar = asciiBytes[i];
                 var nextchar = asciiBytes.Length > i + 1 ? asciiBytes[i + 1] : -1;
 
-                var charCodes = CodesForChar(thischar, nextchar, ref currentCodeSet);
+                var charCodes = CodesForChar(thischar, nextchar, ref _currentCodeSet);
                 codes.AddRange(charCodes);     
                 foreach(int c in charCodes)
                 {
@@ -224,7 +229,7 @@ namespace CSI.Code128
             return $@"{StartChar}{Data}{Checksum}{StopChar}";
         }
 
-        public CodeSet GetBestStartSet(CodeSetAllowed csa1, CodeSetAllowed csa2)
+        public eCodeSet GetBestStartSet(CodeSetAllowed csa1, CodeSetAllowed csa2)
         {
             var vote = 0;
 
@@ -233,7 +238,7 @@ namespace CSI.Code128
             vote += csa2 == CodeSetAllowed.CodeA ? 1 : 0;
             vote += csa2 == CodeSetAllowed.CodeB ? -1 : 0;
 
-            return vote > 0 ? CodeSet.CodeA : CodeSet.CodeB; // ties go to codeB due to my own prejudices
+            return vote > 0 ? eCodeSet.CodeA : eCodeSet.CodeB; // ties go to codeB due to my own prejudices
         }
 
         public string GetCode(int ascii)
@@ -251,7 +256,7 @@ namespace CSI.Code128
         /// if the returned codes change that, then this value will be changed to reflect it</param>
         /// <returns>An array of integers representing the codes that need to be output to produce the 
         /// given character</returns>
-        public int[] CodesForChar(int charAscii, int lookAheadAscii, ref CodeSet currentCodeSet)
+        public int[] CodesForChar(int charAscii, int lookAheadAscii, ref eCodeSet currentCodeSet)
         {
             int[] result;
             var shifter = -1;
@@ -264,13 +269,13 @@ namespace CSI.Code128
                     // we need to switch code sets
                     switch (currentCodeSet)
                     {
-                        case CodeSet.CodeA:
+                        case eCodeSet.CodeA:
                             shifter = CCodeB;
-                            currentCodeSet = CodeSet.CodeB;
+                            currentCodeSet = eCodeSet.CodeB;
                             break;
-                        case CodeSet.CodeB:
+                        case eCodeSet.CodeB:
                             shifter = CCodeA;
-                            currentCodeSet = CodeSet.CodeA;
+                            currentCodeSet = eCodeSet.CodeA;
                             break;
                     }
                 }
@@ -319,11 +324,11 @@ namespace CSI.Code128
         /// <param name="charAscii">character to check for</param>
         /// <param name="currentCodeSet">codeset context to test</param>
         /// <returns>true if the codeset contains a representation for the ASCII character</returns>
-        public bool CharCompatibleWithCodeset(int charAscii, CodeSet currentCodeSet)
+        public bool CharCompatibleWithCodeset(int charAscii, eCodeSet currentCodeSet)
         {
             var csa = CodesetAllowedForChar(charAscii);
-            return csa == CodeSetAllowed.CodeAorB || (csa == CodeSetAllowed.CodeA && currentCodeSet == CodeSet.CodeA)
-                   || (csa == CodeSetAllowed.CodeB && currentCodeSet == CodeSet.CodeB);
+            return csa == CodeSetAllowed.CodeAorB || (csa == CodeSetAllowed.CodeA && currentCodeSet == eCodeSet.CodeA)
+                   || (csa == CodeSetAllowed.CodeB && currentCodeSet == eCodeSet.CodeB);
         }
 
         /// <summary>
@@ -341,9 +346,9 @@ namespace CSI.Code128
         /// </summary>
         /// <param name="cs">The codeset you want to start in</param>
         /// <returns>The code128 code to start a barcode in that codeset</returns>
-        public int StartCodeForCodeSet(CodeSet cs)
+        public int StartCodeForCodeSet(eCodeSet cs)
         {
-            return cs == CodeSet.CodeA ? CStartA : CStartB;
+            return cs == eCodeSet.CodeA ? CStartA : CStartB;
         }
     }
 }
