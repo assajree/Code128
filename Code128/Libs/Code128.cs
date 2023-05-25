@@ -39,10 +39,14 @@ namespace CSI.Code128
         public enum CodeSetAllowed
         {
             CodeA,
+            CodeAorB,
+            CodeB,            
+        }
 
-            CodeB,
-
-            CodeAorB
+        public string GetAllCharacter()
+        {
+            var charList = dict.Values.ToList();
+            return String.Join("", charList);
         }
 
         /// <summary>
@@ -50,7 +54,7 @@ namespace CSI.Code128
         /// </summary>
         private Dictionary<int, string> dict = new Dictionary<int, string>()
         {
-            {0,"Â"},        // space
+            {0,"Ï"},        // space
             {1,"!"},        // 
             {2,"\""},       // 
             {3,"#"},        // 
@@ -178,14 +182,16 @@ namespace CSI.Code128
             // turn the string into ascii byte data
             var asciiBytes = Encoding.ASCII.GetBytes(text);
 
-            // decide which codeset to start with
-            var csa1 = asciiBytes.Length > 0
-                           ? CodesetAllowedForChar(asciiBytes[0])
-                           : CodeSetAllowed.CodeAorB;
-            var csa2 = asciiBytes.Length > 1
-                           ? CodesetAllowedForChar(asciiBytes[1])
-                           : CodeSetAllowed.CodeAorB;
-            _currentCodeSet = GetBestStartSet(csa1, csa2);
+            //// decide which codeset to start with
+            //var csa1 = asciiBytes.Length > 0
+            //               ? CodesetAllowedForChar(asciiBytes[0])
+            //               : CodeSetAllowed.CodeAorB;
+            //var csa2 = asciiBytes.Length > 1
+            //               ? CodesetAllowedForChar(asciiBytes[1])
+            //               : CodeSetAllowed.CodeAorB;
+            //_currentCodeSet = GetBestStartSet(csa1, csa2);
+
+            _currentCodeSet = GetBarcodeSet(asciiBytes);
 
             // set up the beginning of the barcode
             // assume no codeset changes, account for start, checksum, and stop
@@ -209,14 +215,11 @@ namespace CSI.Code128
             }
 
             // calculate the check digit
-            var checksum = (int)codes[0];
-            for (var i = 1; i < codes.Count; i++)
-            {
-                checksum += i * (int)codes[i];
-            }
+            var checksum = CalculateCheckSum(codes);
 
-            codes.Add(checksum % 103);
-            this.Checksum = GetCode(checksum % 103);
+            var charCheck = checksum % 103;
+            codes.Add(charCheck);
+            this.Checksum = GetCode(charCheck);
 
             codes.Add(CStop);
             this.StopChar = GetCode(CStop);
@@ -224,11 +227,38 @@ namespace CSI.Code128
             var result = codes.ToArray(typeof(int)) as int[];
         }
 
+        private int CalculateCheckSum(ArrayList codes)
+        {
+            // calculate the check digit
+            var checksum = (int)codes[0];
+            for (var i = 1; i < codes.Count; i++)
+            {
+                checksum += i * (int)codes[i];
+            }
+
+            return checksum;
+        }
+
         public override string ToString()
         {
             return $@"{StartChar}{Data}{Checksum}{StopChar}";
         }
 
+        // return set A if all character support
+        private eCodeSet GetBarcodeSet(byte[] asciiBytes)
+        {
+            foreach (int b in asciiBytes)
+            {
+                if (CodesetAllowedForChar(b) == CodeSetAllowed.CodeB)
+                {
+                    return eCodeSet.CodeB;
+                }
+            }
+
+            return eCodeSet.CodeA;
+        }
+
+        // always return code B?
         public eCodeSet GetBestStartSet(CodeSetAllowed csa1, CodeSetAllowed csa2)
         {
             var vote = 0;

@@ -31,8 +31,8 @@
             this.txtText = new System.Windows.Forms.TextBox();
             this.btnEncode = new System.Windows.Forms.Button();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
-            this.txtResult = new System.Windows.Forms.TextBox();
             this.lblBarcode = new System.Windows.Forms.Label();
+            this.txtResult = new System.Windows.Forms.TextBox();
             this.tableLayoutPanel1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -45,7 +45,7 @@
             this.txtText.Name = "txtText";
             this.txtText.Size = new System.Drawing.Size(416, 19);
             this.txtText.TabIndex = 0;
-            this.txtText.Text = "Hello World!";
+            this.txtText.Text = "R1AI4000025";
             this.txtText.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // btnEncode
@@ -78,6 +78,17 @@
             this.tableLayoutPanel1.Size = new System.Drawing.Size(422, 115);
             this.tableLayoutPanel1.TabIndex = 3;
             // 
+            // lblBarcode
+            // 
+            this.lblBarcode.Dock = System.Windows.Forms.DockStyle.Top;
+            this.lblBarcode.Font = new System.Drawing.Font("Code 128", 30F);
+            this.lblBarcode.Location = new System.Drawing.Point(3, 54);
+            this.lblBarcode.Name = "lblBarcode";
+            this.lblBarcode.Size = new System.Drawing.Size(416, 34);
+            this.lblBarcode.TabIndex = 2;
+            this.lblBarcode.Text = "Code128";
+            this.lblBarcode.TextAlign = System.Drawing.ContentAlignment.TopCenter;
+            // 
             // txtResult
             // 
             this.txtResult.BorderStyle = System.Windows.Forms.BorderStyle.None;
@@ -90,17 +101,6 @@
             this.txtResult.TabIndex = 3;
             this.txtResult.Text = "Hello World!";
             this.txtResult.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            // 
-            // lblBarcode
-            // 
-            this.lblBarcode.Dock = System.Windows.Forms.DockStyle.Top;
-            this.lblBarcode.Font = new System.Drawing.Font("Libre Barcode 128", 40F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lblBarcode.Location = new System.Drawing.Point(3, 54);
-            this.lblBarcode.Name = "lblBarcode";
-            this.lblBarcode.Size = new System.Drawing.Size(416, 34);
-            this.lblBarcode.TabIndex = 2;
-            this.lblBarcode.Text = "Code128";
-            this.lblBarcode.TextAlign = System.Drawing.ContentAlignment.TopCenter;
             // 
             // Form1
             // 
