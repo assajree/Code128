@@ -14,10 +14,10 @@ namespace CSI.Code128
 {
     public partial class Form1 : Form
     {
+        Code128 _code128 = new Code128(null);
         public Form1()
         {
             InitializeComponent();
-            var code128 = new Code128(null);
 
             //txtText.Text = code128.GetAllCharacter();
             Encode();
@@ -32,9 +32,11 @@ namespace CSI.Code128
         {
             var text = txtText.Text;
 
-            var code128 = new Code128(text);
-            lblBarcode.Text = code128.ToString();
-            txtResult.Text = code128.ToString();
+            _code128.SetValue(text);
+            lblBarcode.Text = _code128.ToString();
+            txtResult.Text = _code128.ToString();
+
+            var sum = _code128.GetSumCharacter("ËTÇd/*ÉKÇ'ÏÉ0");
 
             //var code128 = FlexCode128.GenBarcodeEncode(text);
             //lblBarcode.Text = code128;

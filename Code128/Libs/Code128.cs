@@ -9,6 +9,10 @@ namespace CSI.Code128
 {
     /// <summary>
     /// based on https://github.com/mormegil-cz/GenCode128
+    /// ref.
+    /// https://en.wikipedia.org/wiki/Code_128
+    /// https://github.com/graphicore/librebarcode/blob/master/app/lib/code128Encoder/encoder.mjs
+    /// https://www.barcodefaq.com/1d/code-128/#Code-128CharacterSet
     /// </summary>
     public class Code128
     {
@@ -40,7 +44,7 @@ namespace CSI.Code128
         {
             CodeA,
             CodeAorB,
-            CodeB,            
+            CodeB,
         }
 
         public string GetAllCharacter()
@@ -162,6 +166,23 @@ namespace CSI.Code128
             {105,"Í"},      // Start Code C	
             {106,"Î"},      // Stop
         };
+
+        Dictionary<string, int> _dictReverse;
+        private Dictionary<string, int> dictReverse
+        {
+            get
+            {
+                if(_dictReverse == null)
+                {
+                    _dictReverse = new Dictionary<string, int>();
+                    foreach(var item in dict)
+                    {
+                        _dictReverse.Add(item.Value, item.Key);
+                    }
+                }
+                return _dictReverse;
+            }
+        }
         private eCodeSet _currentCodeSet;
         public eCodeSet CodeSet
         {
@@ -176,7 +197,12 @@ namespace CSI.Code128
 
         public Code128(string text)
         {
-            if(String.IsNullOrEmpty(text))
+            SetValue(text);
+        }
+
+        public void SetValue(string text)
+        {
+            if (String.IsNullOrEmpty(text))
                 return;
 
             // turn the string into ascii byte data
@@ -207,11 +233,11 @@ namespace CSI.Code128
                 var nextchar = asciiBytes.Length > i + 1 ? asciiBytes[i + 1] : -1;
 
                 var charCodes = CodesForChar(thischar, nextchar, ref _currentCodeSet);
-                codes.AddRange(charCodes);     
-                foreach(int c in charCodes)
+                codes.AddRange(charCodes);
+                foreach (int c in charCodes)
                 {
                     Data += GetCode(c);
-                }         
+                }
             }
 
             // calculate the check digit
@@ -242,6 +268,22 @@ namespace CSI.Code128
         public override string ToString()
         {
             return $@"{StartChar}{Data}{Checksum}{StopChar}";
+        }
+
+        public string GetSumCharacter(string barcode)
+        {
+            var codes = new ArrayList();
+            foreach (var c in barcode)
+            {
+                var val = dictReverse[c.ToString()];
+                codes.Add(val);
+            }
+
+            var checksum = CalculateCheckSum(codes);
+
+            var charCheck = checksum % 103;
+            var sumChar = GetCode(charCheck);
+            return sumChar;
         }
 
         // return set A if all character support
