@@ -254,12 +254,16 @@ namespace CSI.Code128
                     result += text[i];
                 }
 
+                // check next code set
                 var remainCharacter = text.Substring(i + 1);
-                var nextCodeSet = GetCodeSet(remainCharacter);
-                if (nextCodeSet != currentCodeSet)
+                if (remainCharacter.Length > 0)
                 {
-                    result += GetSetShiftCharacter(nextCodeSet);
-                    currentCodeSet = nextCodeSet;
+                    var nextCodeSet = GetCodeSet(remainCharacter);
+                    if (nextCodeSet != currentCodeSet)
+                    {
+                        result += GetSetShiftCharacter(nextCodeSet);
+                        currentCodeSet = nextCodeSet;
+                    }
                 }
             }
 
@@ -290,7 +294,7 @@ namespace CSI.Code128
 
         private eCodeSet GetCodeSet(string text)
         {
-            if (text.Length > 2 && IsFirstTwoCharacterIsNumber(text))
+            if (text.Length > 1 && IsFirstTwoCharacterIsNumber(text))
                 return eCodeSet.CodeC;
 
             // text contain lower case
