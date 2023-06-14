@@ -21,42 +21,27 @@ namespace CSI.Code128
         public enum eCodeSet
         {
             CodeA,
-            CodeB
-            //// CodeC   // not supported
-        }
-
-        private const int CShift = 98;
-
-        private const int CCodeA = 101;
-
-        private const int CCodeB = 100;
-
-        private const int CStartA = 103;
-
-        private const int CStartB = 104;
-
-        private const int CStop = 106;
-
-        /// <summary>
-        /// Indicates which code sets can represent a character -- CodeA, CodeB, or either
-        /// </summary>
-        public enum CodeSetAllowed
-        {
-            CodeA,
-            CodeAorB,
             CodeB,
+            CodeC
         }
 
+        private const int CODE_SHIFT = 98;
+        private const int CODE_SHIFT_C = 99;
+        private const int CODE_SHIFT_B = 100;
+        private const int CODE_SHIFT_A = 101;
+        private const int CODE_START_A = 103;
+        private const int CODE_START_B = 104;
+        private const int CODE_START_C = 105;
+        private const int CODE_STOP = 106;
+
+       
         public string GetAllCharacter()
         {
-            var charList = dict.Values.ToList();
+            var charList = DictCharacter.Values.ToList();
             return String.Join("", charList);
         }
 
-        /// <summary>
-        /// from https://github.com/graphicore/librebarcode/blob/master/app/lib/code128Encoder/encoder.mjs
-        /// </summary>
-        private Dictionary<int, string> dict = new Dictionary<int, string>()
+        private Dictionary<int, string> DictCharacter = new Dictionary<int, string>()
         {
             {0,"Ï"},        // space
             {1,"!"},        // 
@@ -158,7 +143,7 @@ namespace CSI.Code128
             {97,"Å"},       // FNC 2
             {98,"Æ"},       // SHIFT A
             {99,"Ç"},       // CODE C
-            {100,"È"},      // FNC 4
+            {100,"È"},      // CODE B
             {101,"É"},      // CODE A
             {102,"Ê"},      // FNC 1
             {103,"Ë"},      // Start Code A
@@ -167,43 +152,59 @@ namespace CSI.Code128
             {106,"Î"},      // Stop
         };
 
-        Dictionary<string, int> _dictReverse;
-        private Dictionary<string, int> dictReverse
+        private string GetCharacter(int code)
+        {
+            return DictCharacter[code];
+        }
+
+        private int GetCode(string character)
+        {
+            return DictCode[character];
+        }
+
+        Dictionary<string, int> _DictCode;
+        private Dictionary<string, int> DictCode
         {
             get
             {
-                if(_dictReverse == null)
+                if (_DictCode == null)
                 {
-                    _dictReverse = new Dictionary<string, int>();
-                    foreach(var item in dict)
+                    _DictCode = new Dictionary<string, int>();
+                    foreach (var item in DictCharacter)
                     {
-                        _dictReverse.Add(item.Value, item.Key);
+                        _DictCode.Add(item.Value, item.Key);
                     }
                 }
-                return _dictReverse;
+                return _DictCode;
             }
         }
-        private eCodeSet _currentCodeSet;
-        public eCodeSet CodeSet
-        {
-            get { return _currentCodeSet; }
-        }
+        
         #endregion
 
-        public string StartChar { get; private set; }
-        public string Data { get; private set; } = "";
-        public string Checksum { get; private set; }
-        public string StopChar { get; private set; }
+        //public string StartChar { get; private set; }
+        //public string Data { get; private set; } = "";
+        //public string Checksum { get; private set; }
+        //public string StopChar { get; private set; }
 
-        public Code128(string text)
+        string _text;
+        public Code128(string text = null)
         {
-            SetValue(text);
+            _text = text;
         }
 
-        public void SetValue(string text)
+        public void SetText(string text)
         {
+            _text = text;
+        }
+
+        public string Encode(string text)
+        {
+            _text = text;
+
             if (String.IsNullOrEmpty(text))
-                return;
+                return null;
+
+            string result = "";
 
             // turn the string into ascii byte data
             var asciiBytes = Encoding.ASCII.GetBytes(text);
@@ -217,42 +218,119 @@ namespace CSI.Code128
             //               : CodeSetAllowed.CodeAorB;
             //_currentCodeSet = GetBestStartSet(csa1, csa2);
 
-            _currentCodeSet = GetBarcodeSet(asciiBytes);
 
-            // set up the beginning of the barcode
-            // assume no codeset changes, account for start, checksum, and stop
-            var codes = new ArrayList(asciiBytes.Length + 3);
-            var startCode = StartCodeForCodeSet(_currentCodeSet);
-            codes.Add(startCode);
-            this.StartChar = GetCode(startCode);
+            var currentCodeSet = GetCodeSet(text);
 
-            // add the codes for each character in the string
-            for (var i = 0; i < asciiBytes.Length; i++)
+            // get start char
+            string charStart;
+            switch (currentCodeSet)
             {
-                int thischar = asciiBytes[i];
-                var nextchar = asciiBytes.Length > i + 1 ? asciiBytes[i + 1] : -1;
+                case eCodeSet.CodeA:
+                    charStart = GetCharacter(CODE_START_A);
+                    break;
+                case eCodeSet.CodeB:
+                    charStart = GetCharacter(CODE_START_B);
+                    break;
+                default:
+                    charStart = GetCharacter(CODE_START_C);
+                    break;
+            }
+            result = charStart;
 
-                var charCodes = CodesForChar(thischar, nextchar, ref _currentCodeSet);
-                codes.AddRange(charCodes);
-                foreach (int c in charCodes)
+            // loop all input character
+            for (var i = 0; i < text.Length; i++)
+            {
+                if (currentCodeSet == eCodeSet.CodeC)
+	            {
+                    var nextTwoCharacter = text.Substring(i,2);
+                    var code = Convert.ToInt32(nextTwoCharacter);                    
+                    var character = GetCharacter(code);
+                    result += character;
+                    i++; //skip next character
+
+                }
+	            else
+	            {
+                    result += text[i];
+                }
+
+                var remainCharacter = text.Substring(i + 1);
+                var nextCodeSet = GetCodeSet(remainCharacter);
+                if (nextCodeSet != currentCodeSet)
                 {
-                    Data += GetCode(c);
+                    result += GetSetShiftCharacter(nextCodeSet);
+                    currentCodeSet = nextCodeSet;
                 }
             }
 
-            // calculate the check digit
-            var checksum = CalculateCheckSum(codes);
+            // check sum
+            string charSum = GetSumCharacter(result);
+            result += charSum;
 
-            var charCheck = checksum % 103;
-            codes.Add(charCheck);
-            this.Checksum = GetCode(charCheck);
+            // stop
+            string charStop = GetString(CODE_STOP);
+            result += charStop;
 
-            codes.Add(CStop);
-            this.StopChar = GetCode(CStop);
+            return result;
 
-            var result = codes.ToArray(typeof(int)) as int[];
         }
 
+        private string GetSetShiftCharacter(eCodeSet nextCodeSet)
+        {
+            switch (nextCodeSet)
+            {
+                case eCodeSet.CodeA:
+                    return GetCharacter(CODE_SHIFT_A);
+                case eCodeSet.CodeB:
+                    return GetCharacter(CODE_SHIFT_B);
+                default:
+                    return GetCharacter(CODE_SHIFT_C);
+            }
+        }
+
+        private eCodeSet GetCodeSet(string text)
+        {
+            if (text.Length > 2 && IsFirstTwoCharacterIsNumber(text))
+                return eCodeSet.CodeC;
+
+            // text contain lower case
+            else if (text.Any(char.IsLower))
+                return eCodeSet.CodeB;
+
+            else
+                return eCodeSet.CodeA;
+        }
+
+        private bool IsContainLowerCase(string text)
+        {
+            throw new NotImplementedException();
+        }
+
+        private bool IsFirstTwoCharacterIsNumber(string text)
+        {
+            try
+            {
+                if (!IsNumber(text[0]))
+                    return false;
+
+                if (!IsNumber(text[1]))
+                    return false;
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // text is less than 2 character
+                return false;
+            }
+        }
+
+        private bool IsNumber(char c)
+        {
+            int val;
+            return int.TryParse(c.ToString(), out val);
+        }
+        
         private int CalculateCheckSum(ArrayList codes)
         {
             // calculate the check digit
@@ -262,12 +340,12 @@ namespace CSI.Code128
                 checksum += i * (int)codes[i];
             }
 
-            return checksum;
+            return checksum % 103;
         }
 
         public override string ToString()
         {
-            return $@"{StartChar}{Data}{Checksum}{StopChar}";
+            return Encode(_text);
         }
 
         public string GetSumCharacter(string barcode)
@@ -275,152 +353,19 @@ namespace CSI.Code128
             var codes = new ArrayList();
             foreach (var c in barcode)
             {
-                var val = dictReverse[c.ToString()];
+                var val = DictCode[c.ToString()];
                 codes.Add(val);
             }
 
             var checksum = CalculateCheckSum(codes);
-
-            var charCheck = checksum % 103;
-            var sumChar = GetCode(charCheck);
+            var sumChar = GetString(checksum);
             return sumChar;
-        }
+        }        
 
-        // return set A if all character support
-        private eCodeSet GetBarcodeSet(byte[] asciiBytes)
+        public string GetString(int ascii)
         {
-            foreach (int b in asciiBytes)
-            {
-                if (CodesetAllowedForChar(b) == CodeSetAllowed.CodeB)
-                {
-                    return eCodeSet.CodeB;
-                }
-            }
-
-            return eCodeSet.CodeA;
+            return DictCharacter[ascii];
         }
 
-        // always return code B?
-        public eCodeSet GetBestStartSet(CodeSetAllowed csa1, CodeSetAllowed csa2)
-        {
-            var vote = 0;
-
-            vote += csa1 == CodeSetAllowed.CodeA ? 1 : 0;
-            vote += csa1 == CodeSetAllowed.CodeB ? -1 : 0;
-            vote += csa2 == CodeSetAllowed.CodeA ? 1 : 0;
-            vote += csa2 == CodeSetAllowed.CodeB ? -1 : 0;
-
-            return vote > 0 ? eCodeSet.CodeA : eCodeSet.CodeB; // ties go to codeB due to my own prejudices
-        }
-
-        public string GetCode(int ascii)
-        {
-            return dict[ascii];
-        }
-
-        /// <summary>
-        /// Get the Code128 code value(s) to represent an ASCII character, with 
-        /// optional look-ahead for length optimization
-        /// </summary>
-        /// <param name="charAscii">The ASCII value of the character to translate</param>
-        /// <param name="lookAheadAscii">The next character in sequence (or -1 if none)</param>
-        /// <param name="currentCodeSet">The current codeset, that the returned codes need to follow;
-        /// if the returned codes change that, then this value will be changed to reflect it</param>
-        /// <returns>An array of integers representing the codes that need to be output to produce the 
-        /// given character</returns>
-        public int[] CodesForChar(int charAscii, int lookAheadAscii, ref eCodeSet currentCodeSet)
-        {
-            int[] result;
-            var shifter = -1;
-
-            if (!CharCompatibleWithCodeset(charAscii, currentCodeSet))
-            {
-                // if we have a lookahead character AND if the next character is ALSO not compatible
-                if ((lookAheadAscii != -1) && !CharCompatibleWithCodeset(lookAheadAscii, currentCodeSet))
-                {
-                    // we need to switch code sets
-                    switch (currentCodeSet)
-                    {
-                        case eCodeSet.CodeA:
-                            shifter = CCodeB;
-                            currentCodeSet = eCodeSet.CodeB;
-                            break;
-                        case eCodeSet.CodeB:
-                            shifter = CCodeA;
-                            currentCodeSet = eCodeSet.CodeA;
-                            break;
-                    }
-                }
-                else
-                {
-                    // no need to switch code sets, a temporary SHIFT will suffice
-                    shifter = CShift;
-                }
-            }
-
-            if (shifter != -1)
-            {
-                result = new int[2];
-                result[0] = shifter;
-                result[1] = CodeValueForChar(charAscii);
-            }
-            else
-            {
-                result = new int[1];
-                result[0] = CodeValueForChar(charAscii);
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Tells us which codesets a given character value is allowed in
-        /// </summary>
-        /// <param name="charAscii">ASCII value of character to look at</param>
-        /// <returns>Which codeset(s) can be used to represent this character</returns>
-        public CodeSetAllowed CodesetAllowedForChar(int charAscii)
-        {
-            if (charAscii >= 32 && charAscii <= 95)
-            {
-                return CodeSetAllowed.CodeAorB;
-            }
-            else
-            {
-                return charAscii < 32 ? CodeSetAllowed.CodeA : CodeSetAllowed.CodeB;
-            }
-        }
-
-        /// <summary>
-        /// Determine if a character can be represented in a given codeset
-        /// </summary>
-        /// <param name="charAscii">character to check for</param>
-        /// <param name="currentCodeSet">codeset context to test</param>
-        /// <returns>true if the codeset contains a representation for the ASCII character</returns>
-        public bool CharCompatibleWithCodeset(int charAscii, eCodeSet currentCodeSet)
-        {
-            var csa = CodesetAllowedForChar(charAscii);
-            return csa == CodeSetAllowed.CodeAorB || (csa == CodeSetAllowed.CodeA && currentCodeSet == eCodeSet.CodeA)
-                   || (csa == CodeSetAllowed.CodeB && currentCodeSet == eCodeSet.CodeB);
-        }
-
-        /// <summary>
-        /// Gets the integer code128 code value for a character (assuming the appropriate code set)
-        /// </summary>
-        /// <param name="charAscii">character to convert</param>
-        /// <returns>code128 symbol value for the character</returns>
-        public int CodeValueForChar(int charAscii)
-        {
-            return charAscii >= 32 ? charAscii - 32 : charAscii + 64;
-        }
-
-        /// <summary>
-        /// Return the appropriate START code depending on the codeset we want to be in
-        /// </summary>
-        /// <param name="cs">The codeset you want to start in</param>
-        /// <returns>The code128 code to start a barcode in that codeset</returns>
-        public int StartCodeForCodeSet(eCodeSet cs)
-        {
-            return cs == eCodeSet.CodeA ? CStartA : CStartB;
-        }
     }
 }

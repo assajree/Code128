@@ -32,15 +32,12 @@ namespace CSI.Code128
         {
             var text = txtText.Text;
 
-            _code128.SetValue(text);
-            lblBarcode.Text = _code128.ToString();
-            txtResult.Text = _code128.ToString();
+            var barcode = _code128.Encode(text);
+            lblBarcode.Text = barcode;
+            txtResult.Text = barcode;
 
-            var sum = _code128.GetSumCharacter("ËTÇd/*ÉKÇ'ÏÉ0");
+            //var sum = _code128.GetSumCharacter("ËTÇd/*ÉKÇ'ÏÉ0");
 
-            //var code128 = FlexCode128.GenBarcodeEncode(text);
-            //lblBarcode.Text = code128;
-            //txtResult.Text = code128;
         }
     }
 }
